@@ -1,1 +1,189 @@
 * codex-acp.el
+
+让 Emacs 中的 ACP（Agent Client Protocol）frontend 使用本机 Codex，并通过 Emacs
+操作本机或 TRAMP 项目。适合在本机运行 Codex、在 SSH 主机上处理代码的工作方式。
+
+这个包提供 client factory，由 frontend 负责聊天界面、输入和权限确认。
+Codex 通过 stdio 与 adapter 通信；文件操作、命令执行和远端 skill 读取交给
+本机的 ~tramp-async~ worker，再由 TRAMP 访问目标主机。
+
+#+begin_example
+ACP frontend --> codex-acp.el --> 本机 codex app-server
+                       |
+                       +--> tramp-async worker --> 本机 / TRAMP 项目
+#+end_example
+
+远端无需安装 Codex；连接不需要额外的 TCP listener 或项目文件镜像。
+
+** 支持的功能
+
+- 文本与 inline raster image 输入、流式回复、取消当前 turn。
+- 会话列表、恢复、fork，以及异步生成会话标题。
+- 模型与 reasoning effort 选择，选项来自当前 app-server 返回的模型列表。
+- 本机与远端 skill 发现，通过 frontend 的可用命令列表选择。
+- 文件读取、目录查询、文件写入与替换、literal argv 命令执行。
+- 向进行中的 turn 追加输入（steer）、读取账户配额；frontend 需接入对应扩展接口。
+
+** 依赖与加载
+
+需要：
+
+- Emacs 30.1 或更新版本。
+- 外部 Elisp 包为 ~acp~ 0.17.1 或更新版本，以及 ~async~ 1.9.9 或更新版本。
+  ~async~ 用于启动本机 Emacs worker。
+- 本机 Codex CLI 0.162.1 或更新版本，并完成登录。
+- 能接入自定义 client factory、处理 ACP 权限请求的 frontend。
+
+本仓库已包含 ~tramp-async.el~ （当前版本 0.4.0）、 ~codex-acp-worker.el~ 和
+~acp-image.el~ ，随 adapter 一起加载，无需单独安装 ~tramp-async~ 。
+TRAMP、JSON、Dired 等其余直接依赖由 Emacs 提供。
+
+先在本机终端确认 CLI 并登录：
+
+#+begin_src sh
+codex --version
+codex login
+#+end_src
+
+安装 ~acp~ 和 ~async~ 后，将完整仓库目录加入 ~load-path~ ，并保留四个
+~.el~ 文件的同目录布局。下面的路径需替换为实际位置：
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/codex-acp.el")
+(require 'codex-acp)
+#+end_src
+
+加载 library 本身不会启动 Codex。创建 client 时才启动本机 app-server，并检查
+CLI 版本。GUI Emacs 若找不到 CLI，可将 ~codex-acp-program~ 设置为其绝对路径。
+
+TRAMP 的 SSH 场景还需要本机 SSH client，并能以非交互方式完成远端认证。
+worker 以本机 child Emacs 启动，继承进程环境，但不加载交互式 Emacs 的 init file，
+也不继承其凭据缓存。需要显式传递 TRAMP 设置时，可配置
+~tramp-async-worker-settings~ ；其中不应存放凭据。
+
+** 接入 frontend
+
+将 frontend 的 client factory 设置为 ~#'codex-acp-make-client~ 。具体注册方式由
+frontend 提供；本包没有独立的交互式聊天命令。
+
+factory 接收可选的 conversation buffer 和 scope：
+
+#+begin_example
+(codex-acp-make-client &optional buffer scope)
+#+end_example
+
+- ~buffer~ 默认是当前 buffer，其 ~default-directory~ 决定会话工作目录。本机项目使用
+  ~/absolute/path/to/project/~ ，远端项目使用 ~/ssh:user@host:/path/to/project/~ 。
+  TRAMP 路径须保留完整 prefix。
+- ~scope~ 默认为 ~directory~ ，将文件访问限制在项目及获准目录内。
+  显式传入 ~host~ 可创建同一主机范围的通用会话，写入和命令仍需审批。
+- frontend 应保留该 client，处理更新和权限请求，并在结束时调用 ~acp-shutdown~ 。
+  请求使用异步的 ~acp-send-request~ 等 ACP API；一个 client 对应一个 session。
+
+创建 session 时传入的 ~cwd~ 必须与 conversation buffer 的初始工作目录一致。
+相对路径和未指定 ~cwd~ 的命令一直以这个初始目录为基准，附件路径不会改变它。
+
+frontend 若需要扩展功能，可使用 ~codex-acp-steer-ready-p~ 和 ~codex-acp-steer~
+追加输入，使用 ~codex-acp-read-rate-limits~ 获取账户配额，使用
+~codex-acp-rename-session~ 重命名会话。
+
+** 权限与文件行为
+
+默认允许读取项目目录和已公布的 skill 目录。访问额外目录时，Emacs 会请求授权，
+可选择仅当前 turn 有效，或当前连接有效；重新连接后需重新授权。
+在 prompt 中提到路径或附上文件，不会自动授予目录访问权限。
+
+写入和命令执行均经过 ACP 权限确认。额外目录授权只扩展目录范围，不代替这些
+操作的审批。若 frontend 没有权限处理器，相应操作会失败。
+
+命令参数按 literal argv 传递；管道、重定向等 shell 语法不会自动解释。
+确有需要时须显式调用 shell。命令以目标主机用户的权限执行，项目目录只是 cwd，
+不构成 OS sandbox。获准的普通 SSH、scp 和 rsync 使用同一审批流程；禁止 tunnel、
+端口转发和公开网络暴露。文件工具和命令 cwd 仍属于 session host。
+
+目标文件若有未保存的 visiting buffer，写入会被拒绝；对干净 buffer 的写入期间
+会防止并发编辑。工具不会自动 revert buffer，写入后按需检查并刷新。
+若 worker 报告操作副作用不确定，应先检查目标状态，再决定是否重试。
+
+** Skills 与会话历史
+
+本机 skill 来自 Codex 返回的已启用 skill 列表。TRAMP 会话还会检查远端项目和
+远端用户的以下目录，每个 skill 位于根目录的直接子目录中：
+
+#+begin_example
+<project>/.agents/skills/<name>/SKILL.md
+<project>/.codex/skills/<name>/SKILL.md
+<remote-home>/.agents/skills/<name>/SKILL.md
+<remote-home>/.codex/skills/<name>/SKILL.md
+#+end_example
+
+可用命令以 ~$name~ 的形式展示；重名项会带来源前缀或编号，以实际列表为准。
+远端 skill 内容由 worker 读取后加入 prompt。
+
+会话保存在本机 Codex 中，按项目对应的控制目录区分。本机项目的历史列表还会
+包含该项目的 native Codex 会话，其 metadata 要求 frontend 切换到 external
+backend 打开。
+
+未命名会话首次成功完成 turn 后，会额外发起一次无工具的模型请求生成标题；
+恢复未命名会话时也会尝试命名。命名异步进行，失败不会导致正常对话失败。
+
+** 常用配置
+
+通过 ~M-x customize-group RET codex-acp RET~ 修改 adapter 配置。
+
+- ~codex-acp-program~ ：本机 CLI 可执行文件，默认 ~"codex"~ 。
+- ~codex-acp-model~ ：初始模型，默认 ~nil~ ，使用本机 Codex 的默认值。
+  会话建立后也可通过 frontend 提供的模型和 effort 选项切换。
+- ~codex-acp-server-arguments~ ：额外的 app-server argv，默认 ~nil~ 。
+  adapter 会在这些参数之后追加 workspace 隔离配置。
+- ~codex-acp-command-timeout~ ：获准命令的执行时限，默认 120 秒。
+- ~codex-acp-request-timeout~ ：控制请求时限，默认 30 秒，不是模型 turn 的时限。
+- ~codex-acp-title-timeout~ ：异步标题生成时限，默认 120 秒。
+- ~codex-acp-file-size-limit~ ：文件工具读取或写入的大小上限，默认 4 MiB。
+- ~codex-acp-output-limit~ ：文件或命令结果保留的字符数上限，默认 65,536。
+- ~codex-acp-json-size-limit~ ：单条 JSON 消息上限，默认 64 MiB，inline image
+  payload 单独限额。
+
+图片大小由 ~acp-image~ customization group 的 ~acp-image-max-bytes~ 控制，
+默认每张解码后最多 20 MiB。支持 PNG、JPEG、WebP 和 GIF；传输前会校验 MIME、
+实际图片类型与 Base64 编码。图片作为 inline data URL 发送，历史恢复不会下载
+外部图片或读取图片文件路径。
+
+** 当前限制与排查
+
+adapter 使用 Codex 的 experimental dynamic-tool API，CLI 升级后的兼容性需验证。
+当前不提供音频或外部 MCP server；native shell、hooks、plugins、子 agent、
+浏览器和 web search 等执行入口被禁用，workspace 操作统一通过 Emacs 工具完成。
+同步 ACP 请求不受支持。
+
+- 无法加载：检查外部包 ~acp~ 和 ~async~ 是否可用，并确认完整仓库目录在
+  ~load-path~ 中。 ~tramp-async.el~ 和 ~acp-image.el~ 随仓库提供；若已有其他版本，
+  可用 ~M-x locate-library~ 确认实际加载位置。
+- 交互式 TRAMP 可用但 worker 连接失败：检查 SSH 是否依赖交互式密码输入、
+  Emacs 凭据缓存或仅在 init file 中设置的变量；worker 使用独立的启动环境。
+- 无法启动 CLI：检查 Emacs 能否找到 ~codex-acp-program~ 、版本是否满足要求，
+  以及本机是否已经登录。
+- session 目录不匹配：核对 conversation buffer 的 ~default-directory~ 与请求的
+  ~cwd~ ，远端项目尤其要保留完整 TRAMP prefix。
+- 写入被拒绝：检查权限请求是否通过，以及目标文件是否存在未保存的 buffer。
+  不要直接覆盖或 revert 尚未保存的编辑。
+
+** 开发
+
+- [[file:codex-acp.el][codex-acp.el]]：协议转换、client 与 session 生命周期、权限和 streaming。
+- [[file:codex-acp-worker.el][codex-acp-worker.el]]：worker 侧路径校验、文件与命令操作、远端 skill 读取。
+- [[file:tramp-async.el][tramp-async.el]]：随仓库提供的异步 I/O 实现，负责本机 worker、
+  文件与命令队列、取消、超时及 visiting buffer 写入保护。adapter 直接使用其 API，
+  不要求启用面向交互式文件操作的 ~tramp-async-files-mode~ 。
+- [[file:acp-image.el][acp-image.el]]：inline image 校验及转换。
+
+仓库目前没有自动化测试套件或构建脚本。修改 Elisp 后，可从仓库根目录做基础
+语法与 diff 检查：
+
+#+begin_src sh
+emacs -Q --batch --eval '(dolist (file (quote ("acp-image.el" "tramp-async.el" "codex-acp-worker.el" "codex-acp.el"))) (with-temp-buffer (insert-file-contents file) (emacs-lisp-mode) (check-parens)))'
+git diff --check
+#+end_src
+
+基础检查不加载项目依赖，也不验证实际会话行为。依赖可用时再做 byte compilation，
+并针对受影响的本机或 TRAMP 场景验证权限、取消、超时及关闭后的行为。
