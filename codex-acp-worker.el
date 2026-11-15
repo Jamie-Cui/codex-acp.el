@@ -32,7 +32,7 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'tramp-async)
+(require 'tramp-async-worker)
 (require 'map)
 (require 'subr-x)
 (require 'tramp)

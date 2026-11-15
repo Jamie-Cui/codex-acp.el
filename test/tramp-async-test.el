@@ -7,6 +7,7 @@
 (require 'ert)
 (require 'ert-x)
 (require 'tramp-async)
+(require 'tramp-async-files)
 (require 'envrc)
 (require 'dired-x)
 (require 'apheleia)

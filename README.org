@@ -52,7 +52,7 @@ codex login
 #+end_src
 
 After installing ~acp~ and ~async~, add the complete repository directory to
-~load-path~, keeping all four ~.el~ files together. Replace the path below with
+~load-path~, keeping the package libraries together. Replace the path below with
 your checkout location:
 
 #+begin_src emacs-lisp
@@ -208,24 +208,20 @@ ACP requests are not supported.
   permissions, and streaming.
 - [[file:codex-acp-worker.el][codex-acp-worker.el]]: worker-side path validation, file and
   command operations, and remote skill reads.
-- [[file:tramp-async.el][tramp-async.el]]: bundled asynchronous I/O implementation, including
-  local workers, file and command queues, cancellation, timeouts, and visiting
-  buffer write protection. The adapter uses its API directly; enabling
-  ~tramp-async-files-mode~ for interactive file operations is not required.
+- [[file:tramp-async.el][tramp-async.el]]: parent-side queues, deadlines, cancellation,
+  write protection and lazy entry points for workers and optional UI.
+- [[file:tramp-async-worker.el][tramp-async-worker.el]]: child IPC, bounded file/command
+  execution and canonical path checks.
+- [[file:tramp-async-files-worker.el][tramp-async-files-worker.el]]: optional file snapshots,
+  environments and Dired mutation jobs.
+- [[file:tramp-async-files.el][tramp-async-files.el]]: optional interactive visiting,
+  saving, Dired and batch-save integration. Enable ~tramp-async-files-mode~
+  explicitly when wanted; loading the adapter does not load this layer.
 - [[file:acp-image.el][acp-image.el]]: inline image validation and conversion.
 
-The repository currently has no automated test suite or build script. After
-editing Elisp, run these basic syntax and diff checks from the repository root:
-
-#+begin_src sh
-emacs -Q --batch --eval '(dolist (file (quote ("acp-image.el" "tramp-async.el" "codex-acp-worker.el" "codex-acp.el"))) (with-temp-buffer (insert-file-contents file) (emacs-lisp-mode) (check-parens)))'
-git diff --check
-#+end_src
-
-These checks do not load project dependencies or verify session behavior.
-When dependencies are available, byte-compile the changed libraries and verify
-permissions, cancellation, timeouts, and behavior after shutdown in the affected
-local or TRAMP workflows.
+Existing ~tramp-async-call~, ~tramp-async-submit~, worker functions and interactive
+commands keep their public signatures. Core autoloads preserve callers and
+queued jobs using the former combined library. The child protocol is unchanged.
 
 ** Development and packaging
 

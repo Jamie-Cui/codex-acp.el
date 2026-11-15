@@ -46,6 +46,8 @@
         (emacs-lisp-mode)
         (when (equal (file-name-nondirectory file) "codex-acp-worker.el")
           (setq-local package-lint-main-file (expand-file-name "codex-acp.el" package-check-root)))
+        (when (string-prefix-p "tramp-async-" (file-name-nondirectory file))
+          (setq-local package-lint-main-file (expand-file-name "tramp-async.el" package-check-root)))
         (when-let* ((issues (package-lint-buffer)))
           (message "%s: %S" file issues)
           (when (seq-some (lambda (issue) (eq (nth 2 issue) 'error)) issues)
