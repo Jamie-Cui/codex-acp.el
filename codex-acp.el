@@ -1443,8 +1443,18 @@ SYNC requests are explicitly unsupported."
                         (funcall on-success result)))))
          (failure (lambda (err)
                     (when on-failure
-                      (if (buffer-live-p buffer) (with-current-buffer buffer (funcall on-failure err))
-                        (funcall on-failure err))))))
+                      ;; Match acp.el's callback convention.  Frontends may
+                      ;; accept either just the error or also a raw message.
+                      ;; This in-process adapter has no raw ACP wire message.
+                      (let* ((maximum (cdr (func-arity on-failure)))
+                             (arguments (if (or (eq maximum 'many)
+                                                (>= maximum 2))
+                                            (list err nil)
+                                          (list err))))
+                        (if (buffer-live-p buffer)
+                            (with-current-buffer buffer
+                              (apply on-failure arguments))
+                          (apply on-failure arguments)))))))
     (condition-case err
         (progn
           (when sync (error "Synchronous ACP requests are not supported"))

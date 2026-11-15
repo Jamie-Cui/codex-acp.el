@@ -101,6 +101,42 @@ Frontends can use ~codex-acp-steer-ready-p~ and ~codex-acp-steer~ to add input t
 an active turn, ~codex-acp-read-rate-limits~ to query account quota, and
 ~codex-acp-rename-session~ to rename a session.
 
+*** Agent Shell
+
+Install [[https://github.com/xenodium/agent-shell][Agent Shell]] separately, then enable the optional integration:
+
+#+begin_src emacs-lisp
+(require 'codex-acp-agent-shell)
+(codex-acp-agent-shell-mode 1)
+#+end_src
+
+Select the ~Codex Emacs~ agent from Agent Shell, or run
+~M-x codex-acp-agent-shell-start~. To make it the default:
+
+#+begin_src emacs-lisp
+(setq agent-shell-preferred-agent-config 'codex-emacs)
+#+end_src
+
+This entry uses the Elisp adapter and Emacs workspace tools. Agent Shell's
+built-in ~codex~ entry continues to use the external ~codex-acp~ executable.
+Codex authentication uses the local CLI login described above.
+
+The integration reuses one client per conversation buffer and keeps complete
+TRAMP paths even when an external-agent path resolver is configured globally.
+Agent Shell supplies streaming output, model and effort menus, session history,
+and permission prompts. Steering and quota queries require separate frontend
+extension support. Native Codex sessions that request the external backend
+cannot be opened through this entry; use the built-in ~codex~ agent for them.
+
+Current Agent Shell releases probe client factories repeatedly and assume every
+client has an external command. The optional module isolates compatibility with
+the private ~agent-shell--start~ entry point: it bypasses the nil-command check
+only for this adapter's live client, and closes new clients if startup fails.
+The client retains its nil command, preventing accidental raw CLI restarts.
+Loading the library alone starts no processes and installs no advice.
+Disabling ~codex-acp-agent-shell-mode~ removes registration and compatibility;
+running conversations close through normal Agent Shell or buffer cleanup.
+
 ** Permissions and file behavior
 
 By default, reads are allowed within the project and advertised skill
@@ -206,6 +242,7 @@ ACP requests are not supported.
 
 - [[file:codex-acp.el][codex-acp.el]]: protocol translation, client and session lifecycle,
   permissions, and streaming.
+- [[file:codex-acp-agent-shell.el][codex-acp-agent-shell.el]]: optional Agent Shell registration and startup compatibility.
 - [[file:codex-acp-worker.el][codex-acp-worker.el]]: worker-side path validation, file and
   command operations, and remote skill reads.
 - [[file:tramp-async.el][tramp-async.el]]: parent-side queues, deadlines, cancellation,
@@ -227,7 +264,8 @@ queued jobs using the former combined library. The child protocol is unchanged.
 
 The adapter, worker, image codec and asynchronous transport are shipped together.
 This package has no dependency on Agent Chat or a personal Emacs configuration.
-The frontend integration suite belongs to the Agent Chat repository.
+Agent Shell integration tests live here; Agent Chat integration tests belong to
+the Agent Chat repository.
 
 #+begin_src sh
 make test

@@ -457,6 +457,52 @@
       (should-not methods)
       (should-not (codex-acp--title-attempted title)))))
 
+(ert-deftest codex-acp-test-failure-callbacks-support-one-two-and-rest-arguments ()
+  "Report failures in the conversation buffer using acp.el's callback shapes."
+  (with-temp-buffer
+    (let* ((context (current-buffer))
+           (state (codex-acp--state-create))
+           (client (list (cons :context-buffer context)
+                         (cons :codex-acp-state state)))
+           error-data raw callback-buffer rest)
+      (dolist (callback
+               (list (lambda (err)
+                       (setq error-data err callback-buffer (current-buffer)))
+                     (lambda (err message)
+                       (setq error-data err raw message
+                             callback-buffer (current-buffer)))
+                     (lambda (&rest arguments)
+                       (setq rest arguments raw (cadr arguments)))))
+        (setq error-data nil raw 'unset callback-buffer nil rest nil)
+        (with-temp-buffer
+          (codex-acp--request
+           :client client :request '((:method . "unsupported"))
+           :on-failure callback))
+        (if rest
+            (progn
+              (should (= (length rest) 2))
+              (should-not (cadr rest)))
+          (should (string-match-p "Unsupported ACP method"
+                                  (map-elt error-data 'message)))
+          (should (eq callback-buffer context))))
+      (should-not raw))))
+
+(ert-deftest codex-acp-test-asynchronous-failure-supports-two-argument-callback ()
+  "A deferred transport failure must settle a frontend's pending request."
+  (let* ((state (codex-acp--state-create :initialized t :directory "/tmp/test/"))
+         (client (list (cons :codex-acp-state state)))
+         fail result)
+    (cl-letf (((symbol-function 'codex-acp--rpc)
+               (lambda (_state _method _params _success failure &rest _)
+                 (setq fail failure))))
+      (codex-acp--request
+       :client client
+       :request (acp-make-session-new-request :cwd "/tmp/test/")
+       :on-failure (lambda (err raw) (setq result (list err raw))))
+      (should-not result)
+      (funcall fail '((message . "Deferred failure")))
+      (should (equal result '(((message . "Deferred failure")) nil))))))
+
 (defconst codex-acp-test-effort-models
   [((model . "deep") (displayName . "Deep") (defaultReasoningEffort . "medium")
     (supportedReasoningEfforts . [((reasoningEffort . "medium")) ((reasoningEffort . "ultra"))]))

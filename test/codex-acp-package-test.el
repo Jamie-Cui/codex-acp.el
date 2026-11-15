@@ -25,4 +25,17 @@
             "--eval"
             "(progn (require 'tramp-async) (unload-feature 'tramp-async t) (when (or (featurep 'tramp-async-files) (featurep 'dired-aux)) (error \"Unloading core loaded interactive integration\")))")))
       (ert-info ((buffer-string)) (should (zerop status))))))
+(ert-deftest codex-acp-package-agent-shell-integration-loads-without-frontend ()
+  "Loading and unloading the optional module must not load Agent Shell."
+  (with-temp-buffer
+    (let ((status
+           (apply #'call-process
+                  (expand-file-name invocation-name invocation-directory) nil t nil
+                  "-Q" "--batch"
+                  (append (cl-mapcan (lambda (directory) (list "-L" directory))
+                                     (list codex-acp-package-test--root
+                                           (file-name-directory (locate-library "acp"))
+                                           (file-name-directory (locate-library "async"))))
+                          '("--eval" "(progn (require 'codex-acp-agent-shell) (when (featurep 'agent-shell) (error \"Optional module loaded frontend\")) (when codex-acp-agent-shell-mode (error \"Integration enabled on load\")) (unload-feature 'codex-acp-agent-shell t))")))))
+      (ert-info ((buffer-string)) (should (zerop status))))))
 (provide 'codex-acp-package-test)
