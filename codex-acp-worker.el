@@ -1,5 +1,29 @@
 ;;; codex-acp-worker.el --- Codex policy inside a tramp-async worker -*- lexical-binding: t -*-
 
+;; Copyright (C) 2026 Jamie Cui
+;; Author: Jamie Cui <jamie.cui@outlook.com>
+;; Assisted-by: Codex:GPT-6
+;; Maintainer: Jamie Cui <jamie.cui@outlook.com>
+;; Version: 0.1.0
+;; URL: https://github.com/Jamie-Cui/codex-acp.el
+;; Keywords: tools, processes
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is part of codex-acp.
+;;
+;; codex-acp is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; codex-acp is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with codex-acp.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; Run by a local batch Emacs subprocess.  All filesystem and command calls,
 ;; including TRAMP path resolution, stay outside the interactive Emacs process.

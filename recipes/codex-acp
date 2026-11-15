@@ -1,0 +1,2 @@
+(codex-acp :fetcher github :repo "Jamie-Cui/codex-acp.el"
+          :files ("*.el"))

@@ -226,3 +226,24 @@ These checks do not load project dependencies or verify session behavior.
 When dependencies are available, byte-compile the changed libraries and verify
 permissions, cancellation, timeouts, and behavior after shutdown in the affected
 local or TRAMP workflows.
+
+** Development and packaging
+
+The adapter, worker, image codec and asynchronous transport are shipped together.
+This package has no dependency on Agent Chat or a personal Emacs configuration.
+The frontend integration suite belongs to the Agent Chat repository.
+
+#+begin_src sh
+make test
+make compile
+make lint
+#+end_src
+
+Set ~EMACS~ and ~ELPA_DIR~ when needed. Tests run without the user init file;
+the transport integration tests additionally use Envrc, Apheleia and Dired
+Subtree. Compilation uses a temporary output directory.
+~recipes/codex-acp~ is a draft MELPA recipe, excluding tests and developer tools.
+
+** License
+
+GPL-3.0-or-later; see [[file:LICENSE][LICENSE]].

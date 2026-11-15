@@ -1,7 +1,30 @@
-;;; codex-acp.el --- Local Codex with Emacs workspace tools -*- lexical-binding: t -*-
+;;; codex-acp.el --- Local Codex with workspace tools -*- lexical-binding: t -*-
 
-;; Package-Requires: ((emacs "30.1") (acp "0.17.1") (async "1.9.9"))
+;; Copyright (C) 2026 Jamie Cui
+;; Author: Jamie Cui <jamie.cui@outlook.com>
+;; Assisted-by: Codex:GPT-6
+;; Maintainer: Jamie Cui <jamie.cui@outlook.com>
 ;; Version: 0.1.0
+;; URL: https://github.com/Jamie-Cui/codex-acp.el
+;; Keywords: tools, processes
+;; Package-Requires: ((emacs "30.1") (acp "0.17.1") (async "1.9.9"))
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is part of codex-acp.
+;;
+;; codex-acp is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; codex-acp is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with codex-acp.  If not, see <https://www.gnu.org/licenses/>.
+
 
 ;;; Commentary:
 ;; An in-process ACP adapter for `codex app-server'.  Codex stays local;
@@ -66,7 +89,7 @@
 (defconst codex-acp--read-tools
   '("tramp_read_file" "tramp_list_directory" "tramp_file_truename" "tramp_file_attributes"))
 
-(defgroup codex-acp nil "Local Codex with Emacs workspace tools." :group 'tools)
+(defgroup codex-acp nil "Local Codex with workspace tools." :group 'tools)
 
 (defcustom codex-acp-program "codex"
   "Local Codex CLI executable, version 0.162.1 or newer."
